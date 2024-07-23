@@ -25,7 +25,7 @@ def get_ks_score(tr_probs, te_probs):
   # te_probs: torch.Tensor
   #   predicted probabilities from test test
   # score: float - between 0 and 1
-  pass  # remove me
+  score = ks_2samp(tr_probs.numpy(), te_probs.numpy()).pvalue
   # ============================
   return score
 
@@ -70,6 +70,16 @@ def get_hist_score(tr_probs, te_probs, bins=10):
   # particular what `bin_edges` represent.
   pass  # remove me
   # ============================
+  tr_heights, bin_edges = np.histogram(tr_probs.numpy(), bins=bins, density=True)
+  te_heights, _ = np.histogram(te_probs.numpy(), bins=bin_edges, density=True)
+  score = 0
+  for i in range(len(tr_heights)):
+    w = bin_edges[i+1] - bin_edges[i]
+    tr_area = tr_heights[i] * w
+    te_area = te_heights[i] * w
+    intersect = min(tr_area, te_area)
+    score = score + intersect
+  # ============================
   return score
 
 
@@ -97,8 +107,13 @@ def get_vocab_outlier(tr_vocab, te_vocab):
   # te_vocab: dict[str, int]
   #   Map from word to count for test examples
   # score: float (between 0 and 1)
-  pass  # remove me
   # ============================
+  total_words = sum(te_vocab.values())
+  if total_words == 0:
+      return 0.0  # No words in test set, so no outliers
+
+  unseen_words = sum(te_vocab[word] for word in te_vocab if word not in tr_vocab)
+  score = unseen_words / total_words
   return score
 
 
@@ -132,7 +147,12 @@ class MonitoringSystem:
     # it to a torch.Tensor.
     # 
     # `te_probs_cal`: torch.Tensor
-    pass  # remove me
+    # ============================
+    calibrating_estimator = IsotonicRegression(y_min=0, y_max=1, out_of_bounds='clip') # y is a probability - should be in [0, 1] range
+    calibrating_estimator.fit(tr_probs.numpy(), tr_labels.numpy())
+
+    tr_probs_cal = torch.tensor(calibrating_estimator.predict(tr_probs.numpy()), dtype=tr_probs.dtype)
+    te_probs_cal = torch.tensor(calibrating_estimator.predict(te_probs.numpy()), dtype=te_probs.dtype)
     # ============================
     return tr_probs_cal, te_probs_cal
 

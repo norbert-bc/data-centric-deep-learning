@@ -1,12 +1,12 @@
 import torch
 import numpy as np
 import pandas as pd
+import re
 from os.path import join
 from torch.utils.data import Dataset
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 from .paths import DATA_DIR
-
 
 class ProductReviewEmbeddings(Dataset):
   r"""RoBERTa embeddings of customer reviews. Embeddings are precomputed 
@@ -53,6 +53,10 @@ class ProductReviewEmbeddings(Dataset):
     # Convert tokens to lowercase when updating vocab.
     pass  # remove me
     # ===============================
+    vocab = Counter()
+    for review in self.data['review']:
+      words = [word for word in re.split('\W+', review) if word]
+      vocab.update(words)
     return dict(vocab)
 
   def get_labels(self):
